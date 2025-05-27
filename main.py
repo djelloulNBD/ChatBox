@@ -1,6 +1,28 @@
 import streamlit as st
 import requests, os
+import hashlib
+import json
+from dotenv import load_dotenv
 
+# Load environment variables
+load_dotenv()
+
+# User management
+def load_users():
+    users_str = os.getenv("APP_USERS", "{}")
+    try:
+        return json.loads(users_str)
+    except json.JSONDecodeError:
+        st.error("Error: Invalid APP_USERS environment variable format")
+        return {}
+
+def verify_user(username, password):
+    users = load_users()
+    if username in users:
+        stored_hash = users[username]
+        input_hash = hashlib.sha256(password.encode()).hexdigest()
+        return stored_hash == input_hash
+    return False
 
 # OpenRouter API settings
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
@@ -10,6 +32,10 @@ DEEPSEEK_MODEL = "deepseek/deepseek-chat-v3-0324:free"
 # Initialize session state
 if "messages" not in st.session_state:
     st.session_state.messages = []
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+if "current_user" not in st.session_state:
+    st.session_state.current_user = None
 
 # System prompts for different languages
 SYSTEM_PROMPTS = {
@@ -86,35 +112,59 @@ def generate_response(prompt, language):
         st.error(f"Unexpected Error: {str(e)}")
         return None
 
-# Streamlit UI
-st.title("🤖 Customer Support Reply Generator")
-st.caption("Bilingual Support Agent - FR/EN")
-
-# Language selection
-lang = st.selectbox("Select Language", ["EN", "FR"])
-
-# Chat interface
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
-
-# Input and response generation
-if prompt := st.chat_input("Enter your message"):
-    # Add user message to chat history
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    
-    # Display user message
-    with st.chat_message("user"):
-        st.markdown(prompt)
-    
-    # Generate response
-    with st.spinner("Generating message..."):
-        full_response = generate_response(prompt, lang)
+# Authentication function
+def check_password():
+    if not st.session_state.authenticated:
+        st.title("🔒 Login")
+        username = st.text_input("Username")
+        password = st.text_input("Password", type="password")
         
-        if full_response:
-            # Display assistant response
-            with st.chat_message("assistant"):
-                st.markdown(full_response)
+        if st.button("Login"):
+            if verify_user(username, password):
+                st.session_state.authenticated = True
+                st.session_state.current_user = username
+                st.rerun()
+            else:
+                st.error("Invalid username or password")
+        return False
+    return True
+
+# Main app
+if check_password():
+    st.title("🤖 Customer Support Reply Generator")
+    st.caption(f"Bilingual Support Agent - FR/EN | Logged in as: {st.session_state.current_user}")
+    
+    # Add logout button
+    if st.sidebar.button("Logout"):
+        st.session_state.authenticated = False
+        st.session_state.current_user = None
+        st.rerun()
+
+    # Language selection
+    lang = st.selectbox("Select Language", ["EN", "FR"])
+
+    # Chat interface
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    # Input and response generation
+    if prompt := st.chat_input("Enter your message"):
+        # Add user message to chat history
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        
+        # Display user message
+        with st.chat_message("user"):
+            st.markdown(prompt)
+        
+        # Generate response
+        with st.spinner("Generating message..."):
+            full_response = generate_response(prompt, lang)
             
-            # Add to chat history
-            st.session_state.messages.append({"role": "assistant", "content": full_response})
+            if full_response:
+                # Display assistant response
+                with st.chat_message("assistant"):
+                    st.markdown(full_response)
+                
+                # Add to chat history
+                st.session_state.messages.append({"role": "assistant", "content": full_response})
