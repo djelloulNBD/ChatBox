@@ -5,11 +5,12 @@ import json
 
 # User management
 def load_users():
-    users_str = os.getenv("APP_USERS", "{}")
     try:
-        return json.loads(users_str)
-    except json.JSONDecodeError:
-        st.error("Error: Invalid APP_USERS environment variable format")
+        # Load users from Streamlit secrets
+        users = st.secrets["users"]
+        return users
+    except Exception as e:
+        st.error("Error loading users configuration")
         return {}
 
 def verify_user(username, password):
@@ -21,7 +22,7 @@ def verify_user(username, password):
     return False
 
 # OpenRouter API settings
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+OPENROUTER_API_KEY = st.secrets["OPENROUTER_API_KEY"]
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 DEEPSEEK_MODEL = "deepseek/deepseek-chat-v3-0324:free"
 
@@ -88,8 +89,6 @@ def generate_response(prompt, language):
 
     try:
         response = requests.post(OPENROUTER_API_URL, headers=headers, json=payload)
-
-        # Now try to parse as JSON
         response.raise_for_status()
         response_json = response.json()
         

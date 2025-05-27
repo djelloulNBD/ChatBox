@@ -2,6 +2,7 @@ import hashlib
 import json
 import os
 from typing import Dict, Optional
+import toml
 
 class UserManager:
     def __init__(self, env_var_name: str = "APP_USERS"):
@@ -102,6 +103,35 @@ class UserManager:
         print(f"{self.env_var_name}={users_json}")
         print("\nCopy this line to your .env file")
 
+def create_user_config():
+    print("User Environment Setup")
+    print("-" * 30)
+    
+    # Get user input
+    username = input("Enter username: ")
+    password = input("Enter password: ")
+    
+    # Create password hash
+    password_hash = hashlib.sha256(password.encode()).hexdigest()
+    
+    # Create the users dictionary
+    users = {username: password_hash}
+    
+    # Create TOML content
+    toml_content = {
+        "users": users
+    }
+    
+    # Write to .streamlit/secrets.toml
+    os.makedirs('.streamlit', exist_ok=True)
+    with open('.streamlit/secrets.toml', 'w') as f:
+        toml.dump(toml_content, f)
+    
+    print("\nUser configuration has been set up!")
+    print("The following has been written to .streamlit/secrets.toml:")
+    print(toml.dumps(toml_content))
+    print("\nYou can now deploy your Streamlit application.")
+
 def main():
     manager = UserManager()
     
@@ -150,4 +180,4 @@ def main():
             print("Invalid choice. Please try again.")
 
 if __name__ == "__main__":
-    main() 
+    create_user_config() 
