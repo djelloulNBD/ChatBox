@@ -2,10 +2,6 @@ import streamlit as st
 import requests, os
 import hashlib
 import json
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
 
 # User management
 def load_users():
