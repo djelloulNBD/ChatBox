@@ -1,2 +1,5 @@
 .env
 .streamlit/*
+static/*
+ticket_dashboard.py
+user_manager.py
